@@ -67,7 +67,7 @@ html_content = """
                         <textarea
                             id="sitemapInput"
                             class="w-full h-24 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-black focus:border-transparent outline-none resize-none placeholder-gray-400 transition"
-                            placeholder="moneyme.com.au"
+                            placeholder="google.com"
                         ></textarea>
                         <p class="text-xs text-gray-400 mt-2 mb-4">
                             Accepts: Domain, robots.txt, or direct sitemap.xml
