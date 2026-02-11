@@ -2,7 +2,8 @@ import streamlit as st
 
 st.set_page_config(layout="wide")
 
-html_content =
+html_content = """
+
 <!doctype html>
 <html lang="en">
     <head>
@@ -488,5 +489,6 @@ html_content =
         </script>
     </body>
 </html>
+"""
 
 st.components.v1.html(html_content, height=900, scrolling=True)
