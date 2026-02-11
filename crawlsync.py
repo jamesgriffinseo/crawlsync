@@ -1,40 +1,9 @@
-from flask import Flask, Response
+import streamlit as st
 
-app = Flask(__name__)
+st.set_page_config(layout="wide")
 
-HTML_CONTENT = """<!doctype html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Sitemap Extractor</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link
-            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
-            rel="stylesheet"
-        />
-        <style>
-            body {
-                font-family: "Inter", sans-serif;
-            }
-            .scroller::-webkit-scrollbar { width: 6px; }
-            .scroller::-webkit-scrollbar-track { background: #f1f1f1; }
-            .scroller::-webkit-scrollbar-thumb {
-                background: #d1d5db;
-                border-radius: 3px;
-            }
-            .scroller::-webkit-scrollbar-thumb:hover {
-                background: #9ca3af;
-            }
-            .type-btn.active {
-                background-color: black;
-                color: white;
-                border-color: black;
-            }
-        </style>
-    </head>
-    <body class="bg-[#F9FAFB] text-gray-800 min-h-screen">
-       <!doctype html>
+html_content = """
+<!doctype html>
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
@@ -519,11 +488,5 @@ HTML_CONTENT = """<!doctype html>
         </script>
     </body>
 </html>
-"""
 
-@app.route("/")
-def home():
-    return Response(HTML_CONTENT, mimetype="text/html")
-
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+st.components.v1.html(html_content, height=900, scrolling=True)
