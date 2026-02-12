@@ -1,12 +1,11 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-# Set page config to wide mode to accommodate the 12-column grid
+# Set page config for a professional workspace feel
 st.set_page_config(page_title="Sitemap CrawlSync", layout="wide")
 
-# The original HTML/JS/CSS logic
-# Note: Using triple quotes and f-string if you need to pass python variables
-html_code = """
+# Using raw string to prevent Python from escaping backslashes in JavaScript
+html_code = r"""
 <!doctype html>
 <html lang="en">
     <head>
@@ -46,11 +45,21 @@ html_code = """
                         <button onclick="startDeepExtraction()" id="extractBtn" class="w-full mt-4 bg-black hover:bg-gray-800 text-white font-semibold py-3 px-4 rounded-xl shadow-lg transition">Start Deep Extraction</button>
                         <div id="statusLog" class="hidden mt-4 text-xs font-mono text-gray-500 bg-gray-50 p-3 rounded border border-gray-200 h-32 overflow-y-auto scroller"></div>
                     </div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                        <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Refine Stack</h2>
+                        <div class="space-y-4">
+                            <input type="text" id="filterInclude" oninput="applyFilters()" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-black" placeholder="Must contain..."/>
+                            <input type="text" id="filterExclude" oninput="applyFilters()" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-black" placeholder="Exclude..."/>
+                        </div>
+                    </div>
                 </div>
                 <div class="lg:col-span-8">
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-1 min-h-[500px] flex flex-col">
                         <div class="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50/50 rounded-t-xl">
-                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Results</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Results</span>
+                                <span id="resultCount" class="bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                            </div>
                             <div class="flex gap-2">
                                 <button onclick="sendToIA()" class="text-xs font-medium text-gray-600 bg-white border border-gray-200 px-3 py-1.5 rounded-lg hover:border-black transition">Send to IA Builder</button>
                                 <button onclick="copyToClipboard()" class="text-xs font-medium text-white bg-black px-3 py-1.5 rounded-lg">Copy All</button>
@@ -67,7 +76,7 @@ html_code = """
                 <div class="lg:col-span-4 space-y-6">
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                         <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Input Data</h2>
-                        <textarea id="urlInput" class="w-full h-64 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono outline-none resize-none transition" placeholder="URLs here..."></textarea>
+                        <textarea id="urlInput" class="w-full h-64 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono outline-none resize-none transition" placeholder="Paste URL list here..."></textarea>
                         <button onclick="processSitemapIA()" class="w-full mt-4 bg-black text-white font-semibold py-3 px-4 rounded-xl shadow-lg transition">Build IA Structure</button>
                     </div>
                 </div>
@@ -86,7 +95,6 @@ html_code = """
         </div>
 
         <script>
-            // --- SAME LOGIC AS PREVIOUS VERSION ---
             const CORS_PROXY = "https://corsproxy.io/?";
             let allExtractedUrls = [];
             let displayedUrls = [];
@@ -119,29 +127,36 @@ html_code = """
                 let url = input.trim();
                 if (!url.startsWith("http")) url = "https://" + url;
                 if (url.toLowerCase().endsWith(".xml") || url.toLowerCase().endsWith(".xml.gz")) return url;
+                
                 let robotsUrl = url.replace(/\/$/, "") + "/robots.txt";
-                log(`Checking robots.txt...`);
+                log("Checking robots.txt...");
                 const robots = await fetchText(robotsUrl);
                 if (robots) {
-                    const match = robots.match(/Sitemap:\\s*(https?:\/\/[^\\s]+)/i);
-                    if (match) return match[1];
+                    const match = robots.match(/Sitemap:\s*(https?:\/\/[^\s]+)/i);
+                    if (match && match[1]) {
+                        log("Found Sitemap in robots.txt: " + match[1]);
+                        return match[1];
+                    }
                 }
                 return url.replace(/\/$/, "") + "/sitemap.xml";
             }
 
             async function fetchSitemapRecursive(url) {
-                log(`Scanning: \${url}`);
+                log("Scanning: " + url);
                 const text = await fetchText(url);
                 if (!text) return;
                 const xml = new DOMParser().parseFromString(text, "text/xml");
+                
                 const sitemaps = xml.getElementsByTagName("sitemap");
                 if (sitemaps.length > 0) {
+                    log("Found Index with " + sitemaps.length + " sub-sitemaps.");
                     for (let i = 0; i < sitemaps.length; i++) {
                         const loc = sitemaps[i].getElementsByTagName("loc")[0]?.textContent;
                         if (loc) await fetchSitemapRecursive(loc);
                     }
                 } else {
                     const urls = xml.getElementsByTagName("loc");
+                    log("Extracted " + urls.length + " URLs from " + url);
                     for (let i = 0; i < urls.length; i++) allExtractedUrls.push(urls[i].textContent);
                 }
             }
@@ -157,21 +172,31 @@ html_code = """
                     const master = await discoverSitemap(input);
                     await fetchSitemapRecursive(master);
                     allExtractedUrls = [...new Set(allExtractedUrls)];
-                    displayedUrls = allExtractedUrls.sort();
-                    renderResults();
-                } catch (e) { log(`Error: \${e.message}`); }
+                    applyFilters();
+                } catch (e) { log("Error: " + e.message); }
                 finally { btn.disabled = false; btn.textContent = "Start Deep Extraction"; }
+            }
+
+            function applyFilters() {
+                const inc = document.getElementById("filterInclude").value.toLowerCase();
+                const exc = document.getElementById("filterExclude").value.toLowerCase();
+                displayedUrls = allExtractedUrls.filter(u => {
+                    const low = u.toLowerCase();
+                    return (!inc || low.includes(inc)) && (!exc || !low.includes(exc));
+                }).sort();
+                renderResults();
             }
 
             function renderResults() {
                 const container = document.getElementById("resultsList");
-                container.innerHTML = displayedUrls.slice(0, 1000).map(u => `
-                    <div class="p-2 bg-gray-50 border border-transparent hover:border-gray-200 hover:bg-white rounded text-xs font-mono truncate transition">\${u}</div>
-                `).join('');
+                document.getElementById("resultCount").textContent = displayedUrls.length;
+                container.innerHTML = displayedUrls.slice(0, 1000).map(u => 
+                    '<div class="p-2 bg-gray-50 border border-transparent hover:border-gray-200 hover:bg-white rounded text-xs font-mono truncate transition">' + u + '</div>'
+                ).join('');
             }
 
             function sendToIA() {
-                document.getElementById('urlInput').value = displayedUrls.join('\\n');
+                document.getElementById('urlInput').value = displayedUrls.join('\n');
                 switchTab('ia-builder');
                 processSitemapIA();
             }
@@ -185,11 +210,11 @@ html_code = """
 
             function processSitemapIA() {
                 const input = document.getElementById('urlInput').value.trim();
-                const urls = input.split('\\n').filter(l => l.trim().startsWith('http'));
+                const urls = input.split('\n').filter(l => l.trim().startsWith('http'));
                 processedIAData = urls.map(u => {
                     try {
-                        const path = new URL(u).pathname;
-                        const segments = path.split('/').filter(s => s !== '');
+                        const urlObj = new URL(u);
+                        const segments = urlObj.pathname.split('/').filter(s => s !== '');
                         let item = { url: u, main: segments[0] ? sanitize(segments[0]) : 'Home' };
                         for (let i = 1; i <= 9; i++) item['sub'+i] = segments[i] ? sanitize(segments[i]) : '';
                         item.specific = segments.length > 10 ? sanitize(segments.slice(10).join('-')) : '';
@@ -201,31 +226,30 @@ html_code = """
             }
 
             function renderIATable() {
-                let html = `<table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50 text-[10px] uppercase font-bold">
-                        <tr><th class="p-2">Main</th>\${[1,2,3,4,5,6,7,8,9].map(i => `<th class="p-2">Sub-\${i}</th>`).join('')}<th class="p-2">Item</th><th class="p-2">URL</th></tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">`;
+                let html = '<table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50 text-[10px] uppercase font-bold text-left"><tr><th class="p-2">Main</th>';
+                for(let i=1; i<=9; i++) html += '<th class="p-2">Sub-' + i + '</th>';
+                html += '<th class="p-2">Item</th><th class="p-2">URL</th></tr></thead><tbody class="divide-y divide-gray-100">';
+                
                 processedIAData.forEach(item => {
-                    html += `<tr><td class="p-2 font-medium">\${item.main}</td>` + 
-                    [1,2,3,4,5,6,7,8,9].map(i => `<td class="p-2 text-gray-500">\${item['sub'+i]}</td>`).join('') + 
-                    `<td class="p-2 text-gray-500">\${item.specific}</td><td class="p-2 text-blue-500 truncate max-w-[120px] font-mono">\${item.url}</td></tr>`;
+                    html += '<tr><td class="p-2 font-medium">' + item.main + '</td>';
+                    for(let i=1; i<=9; i++) html += '<td class="p-2 text-gray-500">' + item['sub'+i] + '</td>';
+                    html += '<td class="p-2 text-gray-500">' + item.specific + '</td><td class="p-2 text-blue-500 truncate max-w-[120px] font-mono">' + item.url + '</td></tr>';
                 });
-                document.getElementById('outputTable').innerHTML = html + `</tbody></table>`;
+                document.getElementById('outputTable').innerHTML = html + '</tbody></table>';
             }
 
             function copyTableToClipboard() {
                 const headers = ['Main', 'Sub 1', 'Sub 2', 'Sub 3', 'Sub 4', 'Sub 5', 'Sub 6', 'Sub 7', 'Sub 8', 'Sub 9', 'Item', 'URL'];
-                let tsv = headers.join('\\t') + '\\n';
+                let tsv = headers.join('\t') + '\n';
                 processedIAData.forEach(item => {
                     const row = [item.main, item.sub1, item.sub2, item.sub3, item.sub4, item.sub5, item.sub6, item.sub7, item.sub8, item.sub9, item.specific, item.url];
-                    tsv += row.join('\\t') + '\\n';
+                    tsv += row.join('\t') + '\n';
                 });
                 navigator.clipboard.writeText(tsv);
             }
 
             function copyToClipboard() {
-                navigator.clipboard.writeText(displayedUrls.join('\\n'));
+                navigator.clipboard.writeText(displayedUrls.join('\n'));
             }
         </script>
     </body>
@@ -233,4 +257,5 @@ html_code = """
 """
 
 # Render the HTML in Streamlit
-components.html(html_code, height=1000, scrolling=True)
+# We use a height that fits the design well
+components.html(html_code, height=900, scrolling=True)
