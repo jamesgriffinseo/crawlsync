@@ -1,234 +1,75 @@
 import streamlit as st
+import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide")
+# Set page config for a wide, professional workspace
+st.set_page_config(page_title="Sitemap CrawlSync", layout="wide")
 
-html_content = """
-
+# The unified HTML/JS/CSS application
+html_content = r"""
 <!doctype html>
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Sitemap Extractor</title>
+        <title>Sitemap CrawlSync & IA Builder</title>
         <script src="https://cdn.tailwindcss.com"></script>
-        <link
-            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
-            rel="stylesheet"
-        />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
         <style>
-            body {
-                font-family: "Inter", sans-serif;
-            }
-            /* Custom Scrollbar */
-            .scroller::-webkit-scrollbar {
-                width: 6px;
-            }
-            .scroller::-webkit-scrollbar-track {
-                background: #f1f1f1;
-            }
-            .scroller::-webkit-scrollbar-thumb {
-                background: #d1d5db;
-                border-radius: 3px;
-            }
-            .scroller::-webkit-scrollbar-thumb:hover {
-                background: #9ca3af;
-            }
-
-            .type-btn.active {
-                background-color: black;
-                color: white;
-                border-color: black;
-            }
+            body { font-family: "Inter", sans-serif; background-color: #F9FAFB; color: #1f2937; }
+            .scroller::-webkit-scrollbar { width: 6px; }
+            .scroller::-webkit-scrollbar-track { background: #f1f1f1; }
+            .scroller::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+            .scroller::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+            .tab-btn.active { border-bottom: 2px solid black; color: black; font-weight: 600; }
+            #outputTable { max-width: 100%; overflow-x: auto; }
+            th { white-space: nowrap; }
+            .type-btn.active { background-color: black; color: white; border-color: black; }
         </style>
     </head>
-    <body class="bg-[#F9FAFB] text-gray-800 min-h-screen">
+    <body>
         <div class="text-center pt-10 pb-6">
             <h1 class="text-4xl font-extrabold tracking-tight text-gray-900">
                 Sitemap <span class="text-gray-400">Crawl</span>Sync
             </h1>
-            <p class="text-gray-500 mt-2 text-sm">
-                Smarter sitemap discovery. Automatically crawl robots.txt,
-                follow sitemap indexes, and recursively fetch every linked
-                sitemap in one seamless workflow.
-            </p>
+            <div class="flex justify-center mt-6 border-b border-gray-200 max-w-xs mx-auto">
+                <button onclick="switchTab('extractor')" id="tab-extractor" class="tab-btn active px-4 py-2 text-sm text-gray-500 hover:text-black transition">Extractor</button>
+                <button onclick="switchTab('ia-builder')" id="tab-ia-builder" class="tab-btn px-4 py-2 text-sm text-gray-500 hover:text-black transition">IA Builder</button>
+            </div>
         </div>
 
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+        <div id="view-extractor" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 <div class="lg:col-span-4 space-y-6">
-                    <div
-                        class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6"
-                    >
-                        <h2
-                            class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4"
-                        >
-                            Target Website
-                        </h2>
-                        <textarea
-                            id="sitemapInput"
-                            class="w-full h-24 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-black focus:border-transparent outline-none resize-none placeholder-gray-400 transition"
-                            placeholder="google.com"
-                        ></textarea>
-                        <p class="text-xs text-gray-400 mt-2 mb-4">
-                            Accepts: Domain, robots.txt, or direct sitemap.xml
-                        </p>
-
-                        <button
-                            onclick="startDeepExtraction()"
-                            id="extractBtn"
-                            class="w-full bg-black hover:bg-gray-800 text-white font-semibold py-3 px-4 rounded-xl shadow-lg transform transition hover:-translate-y-0.5 active:translate-y-0"
-                        >
-                            Start Deep Extraction
-                        </button>
-
-                        <div
-                            id="statusLog"
-                            class="hidden mt-4 text-xs font-mono text-gray-500 bg-gray-50 p-3 rounded border border-gray-200 h-24 overflow-y-auto scroller"
-                        ></div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                        <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Target Website</h2>
+                        <textarea id="sitemapInput" class="w-full h-24 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-black outline-none resize-none placeholder-gray-400 transition" placeholder="pillowtalk.com.au"></textarea>
+                        <button onclick="startDeepExtraction()" id="extractBtn" class="w-full mt-4 bg-black hover:bg-gray-800 text-white font-semibold py-3 px-4 rounded-xl shadow-lg transition">Start Deep Extraction</button>
+                        <div id="statusLog" class="hidden mt-4 text-xs font-mono text-gray-500 bg-gray-50 p-3 rounded border border-gray-200 h-32 overflow-y-auto scroller"></div>
                     </div>
-
-                    <div
-                        class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6"
-                    >
-                        <h2
-                            class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4"
-                        >
-                            Refine Stack
-                        </h2>
-
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                        <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Refine Stack</h2>
                         <div class="space-y-4">
-                            <div>
-                                <label
-                                    class="block text-xs font-medium text-gray-700 mb-1"
-                                    >Must Contain</label
-                                >
-                                <input
-                                    type="text"
-                                    id="filterInclude"
-                                    oninput="applyFilters()"
-                                    class="w-full p-2 pl-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-black outline-none"
-                                    placeholder="e.g. /products/"
-                                />
-                            </div>
-                            <div>
-                                <label
-                                    class="block text-xs font-medium text-gray-700 mb-1"
-                                    >Exclude</label
-                                >
-                                <input
-                                    type="text"
-                                    id="filterExclude"
-                                    oninput="applyFilters()"
-                                    class="w-full p-2 pl-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-black outline-none"
-                                    placeholder="e.g. tag"
-                                />
-                            </div>
-                        </div>
-
-                        <div class="mt-6">
-                            <label
-                                class="block text-xs font-medium text-gray-700 mb-2"
-                                >Target Extensions</label
-                            >
-                            <div class="flex flex-wrap gap-2">
-                                <button
-                                    onclick="toggleType('all')"
-                                    id="btn-all"
-                                    class="type-btn active px-4 py-1.5 text-xs font-medium rounded-full border border-black bg-black text-white transition"
-                                >
-                                    All
-                                </button>
-                                <button
-                                    onclick="toggleType('image')"
-                                    id="btn-image"
-                                    class="type-btn px-4 py-1.5 text-xs font-medium rounded-full border border-gray-200 text-gray-600 hover:border-gray-400 transition"
-                                >
-                                    Images
-                                </button>
-                                <button
-                                    onclick="toggleType('pdf')"
-                                    id="btn-pdf"
-                                    class="type-btn px-4 py-1.5 text-xs font-medium rounded-full border border-gray-200 text-gray-600 hover:border-gray-400 transition"
-                                >
-                                    PDFs
-                                </button>
-                            </div>
+                            <input type="text" id="filterInclude" oninput="applyFilters()" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-black" placeholder="Must contain..."/>
+                            <input type="text" id="filterExclude" oninput="applyFilters()" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-black" placeholder="Exclude..."/>
                         </div>
                     </div>
                 </div>
 
-                <div class="lg:col-span-8 space-y-6">
-                    <div
-                        class="bg-white rounded-2xl shadow-sm border border-gray-200 p-1 min-h-[600px] flex flex-col"
-                    >
-                        <div
-                            class="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50/50 rounded-t-xl"
-                        >
+                <div class="lg:col-span-8">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-1 min-h-[600px] flex flex-col">
+                        <div class="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50/50 rounded-t-xl">
                             <div class="flex items-center gap-2">
-                                <span
-                                    class="text-xs font-bold text-gray-400 uppercase tracking-wider"
-                                    >Results (A-Z)</span
-                                >
-                                <span
-                                    id="resultCount"
-                                    class="bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                                    >0</span
-                                >
+                                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Results</span>
+                                <span id="resultCount" class="bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
                             </div>
                             <div class="flex gap-2">
-                                <button
-                                    onclick="copyForSheets()"
-                                    class="flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 hover:bg-green-100 px-3 py-1.5 rounded-lg shadow-sm transition"
-                                >
-                                    <svg
-                                        class="w-3 h-3"
-                                        fill="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14H5v-4h5v4zm0-6H5V7h5v4zm9 6h-5v-4h5v4zm0-6h-5V7h5v4z"
-                                        />
-                                    </svg>
-                                    Copy for Sheets
-                                </button>
-                                <button
-                                    onclick="downloadCSV()"
-                                    class="text-xs font-medium text-gray-600 hover:text-black bg-white border border-gray-200 px-3 py-1.5 rounded-lg shadow-sm transition"
-                                >
-                                    CSV
-                                </button>
-                                <button
-                                    onclick="copyToClipboard()"
-                                    class="text-xs font-medium text-white bg-black px-3 py-1.5 rounded-lg shadow-sm transition"
-                                >
-                                    Copy
-                                </button>
+                                <button onclick="sendToIA()" class="text-xs font-medium text-gray-600 bg-white border border-gray-200 px-3 py-1.5 rounded-lg hover:border-black transition">Send to IA Builder</button>
+                                <button onclick="copyToClipboard()" class="text-xs font-medium text-white bg-black px-3 py-1.5 rounded-lg shadow-sm">Copy All</button>
                             </div>
                         </div>
-
-                        <div
-                            id="resultsList"
-                            class="scroller flex-1 overflow-y-auto p-6 max-h-[600px] space-y-2"
-                        >
-                            <div
-                                class="h-full flex flex-col items-center justify-center text-gray-300"
-                            >
-                                <svg
-                                    class="w-12 h-12 mb-3 text-gray-200"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                                    ></path>
-                                </svg>
-                                <span class="text-sm"
-                                    >Enter a domain to begin</span
-                                >
+                        <div id="resultsList" class="scroller flex-1 overflow-y-auto p-6 max-h-[600px] space-y-2 text-gray-300">
+                            <div class="h-full flex flex-col items-center justify-center">
+                                <span class="text-sm">Enter a domain to begin</span>
                             </div>
                         </div>
                     </div>
@@ -236,21 +77,49 @@ html_content = """
             </div>
         </div>
 
-        <script>
-            // --- CONFIG ---
-            const CORS_PROXY = "https://corsproxy.io/?";
+        <div id="view-ia-builder" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div class="lg:col-span-4 space-y-6">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                        <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Input Data</h2>
+                        <textarea id="urlInput" class="w-full h-64 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono outline-none resize-none placeholder-gray-400 transition" placeholder="Paste URL list here..."></textarea>
+                        <button onclick="processSitemapIA()" class="w-full mt-4 bg-black hover:bg-gray-800 text-white font-semibold py-3 px-4 rounded-xl shadow-lg transition">Build IA Structure</button>
+                    </div>
+                </div>
+                <div class="lg:col-span-8">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-1 min-h-[600px] flex flex-col">
+                        <div class="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50/50 rounded-t-xl">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">IA Table</span>
+                            <button onclick="copyTableToClipboard()" class="text-xs font-medium text-white bg-black px-3 py-1.5 rounded-lg shadow-sm">Copy for Sheets</button>
+                        </div>
+                        <div id="outputSection" class="hidden flex-1 overflow-hidden flex flex-col">
+                            <div id="outputTable" class="scroller flex-1 overflow-auto p-4 text-[11px]"></div>
+                        </div>
+                        <div id="ia-placeholder" class="flex-1 flex flex-col items-center justify-center text-gray-300">
+                            <span class="text-sm">Generate IA to see table</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-            // --- STATE ---
+        <script>
+            const CORS_PROXY = "https://corsproxy.io/?";
             let allExtractedUrls = [];
             let displayedUrls = [];
-            let currentTypeFilter = "all";
+            let processedIAData = [];
 
-            // --- UTILS ---
+            function switchTab(tab) {
+                document.getElementById('view-extractor').classList.toggle('hidden', tab !== 'extractor');
+                document.getElementById('view-ia-builder').classList.toggle('hidden', tab !== 'ia-builder');
+                document.getElementById('tab-extractor').classList.toggle('active', tab === 'extractor');
+                document.getElementById('tab-ia-builder').classList.toggle('active', tab === 'ia-builder');
+            }
+
             function log(msg) {
                 const el = document.getElementById("statusLog");
                 el.classList.remove("hidden");
                 const line = document.createElement("div");
-                line.className = "mb-1";
                 line.textContent = "> " + msg;
                 el.appendChild(line);
                 el.scrollTop = el.scrollHeight;
@@ -258,237 +127,168 @@ html_content = """
 
             async function fetchText(url) {
                 try {
-                    // Use proxy to bypass CORS
-                    const res = await fetch(
-                        CORS_PROXY + encodeURIComponent(url),
-                    );
-                    if (!res.ok) throw new Error(res.status);
-                    return await res.text();
-                } catch (e) {
-                    log(`Failed to fetch ${url} (Error: ${e.message})`);
-                    return null;
-                }
+                    const res = await fetch(CORS_PROXY + encodeURIComponent(url));
+                    if (res.ok) return await res.text();
+                    
+                    // Fallback proxy for Cloudflare-protected sites
+                    const res2 = await fetch("https://api.allorigins.win/get?url=" + encodeURIComponent(url));
+                    const data = await res2.json();
+                    return data.contents;
+                } catch (e) { return null; }
             }
 
-            // --- CORE LOGIC ---
-
-            async function discoverSitemap(input) {
+            async function discoverSitemaps(input) {
                 let url = input.trim();
                 if (!url.startsWith("http")) url = "https://" + url;
+                if (url.toLowerCase().endsWith(".xml") || url.toLowerCase().endsWith(".xml.gz")) return [url];
 
-                if (
-                    url.toLowerCase().endsWith(".xml") ||
-                    url.toLowerCase().endsWith(".xml.gz")
-                ) {
-                    return url;
-                }
-
-                let robotsUrl = url;
-                if (!robotsUrl.toLowerCase().endsWith("robots.txt")) {
-                    robotsUrl = robotsUrl.replace(/\/$/, "") + "/robots.txt";
-                }
-
-                log(`Checking ${robotsUrl}...`);
-                const robotsContent = await fetchText(robotsUrl);
-
-                if (robotsContent) {
-                    const match = robotsContent.match(
-                        /Sitemap:\s*(https?:\/\/[^\s]+)/i,
-                    );
-                    if (match && match[1]) {
-                        log(`Found Sitemap in robots.txt: ${match[1]}`);
-                        return match[1];
+                let robotsUrl = url.replace(/\/$/, "") + "/robots.txt";
+                log("Checking robots.txt...");
+                const robots = await fetchText(robotsUrl);
+                
+                if (robots) {
+                    // Match ALL sitemaps in the file
+                    const matches = [...robots.matchAll(/Sitemap:\s*(https?:\/\/[^\s]+)/gi)];
+                    if (matches.length > 0) {
+                        const sitemaps = matches.map(m => m[1]);
+                        log("Found " + sitemaps.length + " entry sitemaps.");
+                        return sitemaps;
                     }
                 }
-
-                const fallback =
-                    url.replace(/\/robots\.txt$/i, "").replace(/\/$/, "") +
-                    "/sitemap.xml";
-                log(
-                    `No Sitemap found in robots.txt. Trying default: ${fallback}`,
-                );
-                return fallback;
+                return [url.replace(/\/$/, "") + "/sitemap.xml"];
             }
 
-            async function fetchSitemapRecursive(url) {
-                log(`Scanning: ${url}`);
+            async function fetchSitemapRecursive(url, visited = new Set()) {
+                if (visited.has(url)) return;
+                visited.add(url);
+                
+                log("Scanning: " + url);
                 const text = await fetchText(url);
                 if (!text) return;
-
-                const parser = new DOMParser();
-                const xml = parser.parseFromString(text, "text/xml");
-
+                
+                const xml = new DOMParser().parseFromString(text, "text/xml");
                 const sitemaps = xml.getElementsByTagName("sitemap");
+                
                 if (sitemaps.length > 0) {
-                    log(
-                        `Found Index with ${sitemaps.length} sub-sitemaps. Digging deeper...`,
-                    );
                     for (let i = 0; i < sitemaps.length; i++) {
-                        const loc =
-                            sitemaps[i].getElementsByTagName("loc")[0]
-                                ?.textContent;
-                        if (loc) await fetchSitemapRecursive(loc);
+                        const loc = sitemaps[i].getElementsByTagName("loc")[0]?.textContent;
+                        if (loc) await fetchSitemapRecursive(loc, visited);
                     }
                 } else {
                     const urls = xml.getElementsByTagName("loc");
-                    log(`Extracted ${urls.length} URLs from ${url}`);
                     for (let i = 0; i < urls.length; i++) {
                         allExtractedUrls.push(urls[i].textContent);
                     }
+                    log("Collected " + urls.length + " URLs from branch.");
                 }
             }
 
             async function startDeepExtraction() {
                 const input = document.getElementById("sitemapInput").value;
-                if (!input) return alert("Please enter a domain or URL");
-
-                document.getElementById("statusLog").innerHTML = "";
+                if (!input) return;
                 const btn = document.getElementById("extractBtn");
-                btn.disabled = true;
-                btn.textContent = "Crawling...";
-                btn.classList.add("opacity-75", "cursor-not-allowed");
+                btn.disabled = true; btn.textContent = "Crawling...";
+                document.getElementById("statusLog").innerHTML = "";
                 allExtractedUrls = [];
 
                 try {
-                    const masterSitemap = await discoverSitemap(input);
-                    await fetchSitemapRecursive(masterSitemap);
-
+                    const sitemaps = await discoverSitemaps(input);
+                    for (const sm of sitemaps) {
+                        await fetchSitemapRecursive(sm);
+                    }
                     allExtractedUrls = [...new Set(allExtractedUrls)];
-                    log(`DONE. Total unique URLs: ${allExtractedUrls.length}`);
-
                     applyFilters();
-                } catch (error) {
-                    log(`CRITICAL ERROR: ${error.message}`);
-                } finally {
-                    btn.disabled = false;
-                    btn.textContent = "Start Deep Extraction";
-                    btn.classList.remove("opacity-75", "cursor-not-allowed");
-                }
+                    log("DONE. Total unique URLs: " + allExtractedUrls.length);
+                } catch (e) { log("Error: " + e.message); }
+                finally { btn.disabled = false; btn.textContent = "Start Deep Extraction"; }
             }
 
-            // --- FILTERING & UI ---
-
             function applyFilters() {
-                const includeTxt = document
-                    .getElementById("filterInclude")
-                    .value.toLowerCase();
-                const excludeTxt = document
-                    .getElementById("filterExclude")
-                    .value.toLowerCase();
-
-                displayedUrls = allExtractedUrls.filter((url) => {
-                    const lowerUrl = url.toLowerCase();
-                    if (includeTxt && !lowerUrl.includes(includeTxt))
-                        return false;
-                    if (excludeTxt && lowerUrl.includes(excludeTxt))
-                        return false;
-
-                    if (currentTypeFilter === "image")
-                        return /\.(jpg|jpeg|png|webp|gif|svg|bmp|tiff)$/i.test(
-                            url,
-                        );
-                    if (currentTypeFilter === "pdf") return /\.pdf$/i.test(url);
-
-                    return true;
-                });
-
-                // --- NEW: A-Z SORTING ---
-                displayedUrls.sort();
-
+                const inc = document.getElementById("filterInclude").value.toLowerCase();
+                const exc = document.getElementById("filterExclude").value.toLowerCase();
+                displayedUrls = allExtractedUrls.filter(u => {
+                    const low = u.toLowerCase();
+                    return (!inc || low.includes(inc)) && (!exc || !low.includes(exc));
+                }).sort();
                 renderResults();
             }
 
             function renderResults() {
                 const container = document.getElementById("resultsList");
-                const countLabel = document.getElementById("resultCount");
-
-                container.innerHTML = "";
-                countLabel.textContent = displayedUrls.length;
-
+                document.getElementById("resultCount").textContent = displayedUrls.length;
                 if (displayedUrls.length === 0) {
-                    if (allExtractedUrls.length > 0) {
-                        container.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-gray-300"><span class="text-sm">No URLs match your filters</span></div>`;
-                    } else {
-                        container.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-gray-300"><span class="text-sm">No URLs found yet</span></div>`;
-                    }
+                    container.innerHTML = '<div class="h-full flex flex-col items-center justify-center text-gray-300"><span class="text-sm">No results match filters</span></div>';
                     return;
                 }
-
-                const LIMIT = 2000;
-                const subset = displayedUrls.slice(0, LIMIT);
-
-                subset.forEach((url) => {
-                    const item = document.createElement("div");
-                    item.className =
-                        "group flex items-center justify-between p-2 bg-gray-50 border border-transparent hover:bg-white hover:border-gray-200 rounded text-xs transition-all cursor-pointer";
-                    item.onclick = () => {
-                        navigator.clipboard.writeText(url);
-                        item.classList.add("bg-blue-50");
-                        setTimeout(
-                            () => item.classList.remove("bg-blue-50"),
-                            200,
-                        );
-                    };
-                    item.innerHTML = `
-                    <span class="truncate mr-4 font-mono text-gray-600">${url}</span>
-                    <span class="opacity-0 group-hover:opacity-100 text-[10px] text-blue-500 font-bold">COPY</span>
-                `;
-                    container.appendChild(item);
-                });
-
-                if (displayedUrls.length > LIMIT) {
-                    const warning = document.createElement("div");
-                    warning.className = "text-center text-xs text-red-400 p-2";
-                    warning.textContent = `Showing first ${LIMIT} of ${displayedUrls.length} results. Use filters to narrow down.`;
-                    container.appendChild(warning);
-                }
+                container.innerHTML = displayedUrls.slice(0, 2000).map(u => 
+                    '<div class="p-2 bg-gray-50 border border-transparent hover:border-gray-200 hover:bg-white rounded text-xs font-mono truncate transition cursor-pointer" onclick="navigator.clipboard.writeText(\''+u+'\')">' + u + '</div>'
+                ).join('');
             }
 
-            function toggleType(type) {
-                currentTypeFilter = type;
-                document.querySelectorAll(".type-btn").forEach((btn) => {
-                    btn.classList.remove("active", "bg-black", "text-white");
-                    btn.classList.add("text-gray-600", "border-gray-200");
-                });
-                const activeBtn = document.getElementById("btn-" + type);
-                activeBtn.classList.add("active", "bg-black", "text-white");
-                activeBtn.classList.remove("text-gray-600", "border-gray-200");
-
-                applyFilters();
+            function sendToIA() {
+                document.getElementById('urlInput').value = displayedUrls.join('\n');
+                switchTab('ia-builder');
+                processSitemapIA();
             }
 
-            // --- EXPORT ---
+            // IA Builder Logic
+            const sanitize = (s) => {
+                if (!s) return '';
+                let parts = s.split('?')[0].replace(/\/$/, "").split('-');
+                if (parts[parts.length-1].length > 10) parts.pop();
+                return parts.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            };
 
-            function downloadCSV() {
-                if (displayedUrls.length === 0) return;
-                const csvContent =
-                    "data:text/csv;charset=utf-8," + displayedUrls.join("\n");
-                const encodedUri = encodeURI(csvContent);
-                const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", "sitemap_export.csv");
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+            function processSitemapIA() {
+                const input = document.getElementById('urlInput').value.trim();
+                const urls = input.split('\n').filter(l => l.trim().startsWith('http'));
+                processedIAData = urls.map(u => {
+                    try {
+                        const urlObj = new URL(u);
+                        const segments = urlObj.pathname.split('/').filter(s => s !== '');
+                        let item = { url: u, main: segments[0] ? sanitize(segments[0]) : 'Home' };
+                        for (let i = 1; i <= 9; i++) item['sub'+i] = segments[i] ? sanitize(segments[i]) : '';
+                        item.specific = segments.length > 0 ? sanitize(segments[segments.length-1]) : '';
+                        return item;
+                    } catch(e) { return null; }
+                }).filter(x => x);
+
+                renderIATable();
+                document.getElementById('outputSection').classList.remove('hidden');
+                document.getElementById('ia-placeholder').classList.add('hidden');
+            }
+
+            function renderIATable() {
+                let html = '<table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50 text-[10px] uppercase font-bold text-left text-gray-500"><tr><th class="p-2">Main</th>';
+                for(let i=1; i<=9; i++) html += '<th class="p-2">Sub-' + i + '</th>';
+                html += '<th class="p-2">Item</th><th class="p-2">URL</th></tr></thead><tbody class="divide-y divide-gray-100 bg-white">';
+                
+                processedIAData.forEach(item => {
+                    html += '<tr><td class="p-2 font-medium text-gray-900">' + item.main + '</td>';
+                    for(let i=1; i<=9; i++) html += '<td class="p-2 text-gray-500">' + item['sub'+i] + '</td>';
+                    html += '<td class="p-2 text-gray-500">' + item.specific + '</td><td class="p-2 text-blue-500 truncate max-w-[120px] font-mono">' + item.url + '</td></tr>';
+                });
+                document.getElementById('outputTable').innerHTML = html + '</tbody></table>';
+            }
+
+            function copyTableToClipboard() {
+                const headers = ['Main', 'Sub 1', 'Sub 2', 'Sub 3', 'Sub 4', 'Sub 5', 'Sub 6', 'Sub 7', 'Sub 8', 'Sub 9', 'Item', 'URL'];
+                let tsv = headers.join('\t') + '\n';
+                processedIAData.forEach(item => {
+                    const row = [item.main, item.sub1, item.sub2, item.sub3, item.sub4, item.sub5, item.sub6, item.sub7, item.sub8, item.sub9, item.specific, item.url];
+                    tsv += row.join('\t') + '\n';
+                });
+                navigator.clipboard.writeText(tsv);
+                alert("Copied for Google Sheets!");
             }
 
             function copyToClipboard() {
-                if (displayedUrls.length === 0) return;
-                navigator.clipboard
-                    .writeText(displayedUrls.join("\n"))
-                    .then(() => alert("Copied all URLs to clipboard!"));
-            }
-
-            function copyForSheets() {
-                if (displayedUrls.length === 0) return;
-                const data = displayedUrls.join("\n");
-                navigator.clipboard.writeText(data).then(() => {
-                    alert("Copied! Ready to paste into Google Sheets.");
-                });
+                navigator.clipboard.writeText(displayedUrls.join('\n'));
+                alert("Copied all URLs!");
             }
         </script>
     </body>
 </html>
 """
 
-st.components.v1.html(html_content, height=900, scrolling=True)
+components.html(html_content, height=1000, scrolling=True)
