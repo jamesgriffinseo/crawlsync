@@ -1,108 +1,33 @@
 import streamlit as st
 import streamlit.components.v1 as components
-import requests
-import re
-from urllib.parse import urljoin
 
-# 1. PAGE SETUP
+# Set page config for a wide, professional workspace
 st.set_page_config(page_title="Sitemap CrawlSync", layout="wide")
 
-# 2. RECURSIVE CRAWLER ENGINE
-def fetch_resilient(url):
-    """Mimics a browser to bypass Cloudflare/PHP blocks."""
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-    }
-    try:
-        response = requests.get(url, headers=headers, timeout=15)
-        return response.text if response.status_code == 200 else None
-    except:
-        return None
-
-def deep_crawl_sitemaps(url, found_urls=None, searched_sitemaps=None):
-    """Recursively finds all URLs across all linked sitemaps."""
-    if found_urls is None: found_urls = set()
-    if searched_sitemaps is None: searched_sitemaps = set()
-    
-    # Avoid infinite loops or re-scanning the same sitemap
-    if url in searched_sitemaps:
-        return found_urls
-    searched_sitemaps.add(url)
-
-    content = fetch_resilient(url)
-    if not content:
-        return found_urls
-
-    # Extract all <loc> tags (works for both sitemap indices and standard sitemaps)
-    locs = re.findall(r'<loc>(.*?)</loc>', content, re.IGNORECASE)
-    
-    for loc in locs:
-        loc = loc.strip()
-        # Detect if the link is another sitemap (index) or a terminal page URL
-        if any(ext in loc.lower() for ext in ['.xml', '.php', 'sitemap_index', 'sitemap-']):
-            # It's a sub-sitemap: Drill down recursively
-            deep_crawl_sitemaps(loc, found_urls, searched_sitemaps)
-        else:
-            # It's a final page URL: Record it
-            found_urls.add(loc)
-    
-    return found_urls
-
-# --- STATE MANAGEMENT ---
-if 'extracted_urls' not in st.session_state:
-    st.session_state.extracted_urls = []
-
-# --- SIDEBAR CONTROL ---
-with st.sidebar:
-    st.title("Crawler Control")
-    target_domain = st.text_input("Domain", value="pillowtalk.com.au")
-    
-    if st.button("🚀 Run Recursive Crawl", use_container_width=True):
-        if target_domain:
-            with st.spinner("Processing sitemap hierarchy..."):
-                clean_domain = target_domain.replace('https://','').replace('http://','').split('/')[0]
-                base_url = f"https://{clean_domain}"
-                
-                # Pillow Talk lists two main entry points in robots.txt
-                # We crawl both to ensure 100% coverage
-                entry_points = [
-                    urljoin(base_url, "/xmlsitemap.php"),
-                    urljoin(base_url, "/comfort-journal/sitemap_index.xml")
-                ]
-                
-                final_results = set()
-                for start_url in entry_points:
-                    final_results.update(deep_crawl_sitemaps(start_url))
-                
-                st.session_state.extracted_urls = sorted(list(final_results))
-                st.success(f"Discovered {len(st.session_state.extracted_urls)} unique URLs.")
-        else:
-            st.error("Please enter a domain.")
-
-# --- THE UI (HTML/JS) ---
-# We inject the python results as a JSON string
-js_url_list = str(st.session_state.extracted_urls).replace("'", '"')
-
-html_content = f"""
+# The unified HTML/JS/CSS application
+html_content = r"""
 <!doctype html>
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Sitemap CrawlSync</title>
+        <title>Sitemap CrawlSync & IA Builder</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
         <style>
-            body {{ font-family: "Inter", sans-serif; background-color: #F9FAFB; overflow: hidden; }}
-            .scroller::-webkit-scrollbar {{ width: 6px; }}
-            .scroller::-webkit-scrollbar-track {{ background: #f1f1f1; }}
-            .scroller::-webkit-scrollbar-thumb {{ background: #d1d5db; border-radius: 3px; }}
-            .tab-btn.active {{ border-bottom: 2px solid black; color: black; font-weight: 600; }}
+            body { font-family: "Inter", sans-serif; background-color: #F9FAFB; color: #1f2937; }
+            .scroller::-webkit-scrollbar { width: 6px; }
+            .scroller::-webkit-scrollbar-track { background: #f1f1f1; }
+            .scroller::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+            .scroller::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+            .tab-btn.active { border-bottom: 2px solid black; color: black; font-weight: 600; }
+            #outputTable { max-width: 100%; overflow-x: auto; }
+            th { white-space: nowrap; }
+            .type-btn.active { background-color: black; color: white; border-color: black; }
         </style>
     </head>
-    <body class="text-gray-800">
-        <div class="text-center pt-6 pb-6">
+    <body>
+        <div class="text-center pt-10 pb-6">
             <h1 class="text-4xl font-extrabold tracking-tight text-gray-900">
                 Sitemap <span class="text-gray-400">Crawl</span>Sync
             </h1>
@@ -112,37 +37,66 @@ html_content = f"""
             </div>
         </div>
 
-        <div id="view-extractor" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-1 min-h-[600px] flex flex-col">
-                <div class="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50/50 rounded-t-xl">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Results ({len(st.session_state.extracted_urls)})</span>
-                    <div class="flex gap-2">
-                        <button onclick="sendToIA()" class="text-xs font-medium text-gray-600 bg-white border border-gray-200 px-3 py-1.5 rounded-lg hover:border-black transition">Send to IA Builder</button>
-                        <button onclick="copyToClipboard()" class="text-xs font-medium text-white bg-black px-3 py-1.5 rounded-lg shadow-sm">Copy All</button>
+        <div id="view-extractor" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div class="lg:col-span-4 space-y-6">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                        <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Target Website</h2>
+                        <textarea id="sitemapInput" class="w-full h-24 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-black outline-none resize-none placeholder-gray-400 transition" placeholder="pillowtalk.com.au"></textarea>
+                        <button onclick="startDeepExtraction()" id="extractBtn" class="w-full mt-4 bg-black hover:bg-gray-800 text-white font-semibold py-3 px-4 rounded-xl shadow-lg transition">Start Deep Extraction</button>
+                        <div id="statusLog" class="hidden mt-4 text-xs font-mono text-gray-500 bg-gray-50 p-3 rounded border border-gray-200 h-32 overflow-y-auto scroller"></div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                        <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Refine Stack</h2>
+                        <div class="space-y-4">
+                            <input type="text" id="filterInclude" oninput="applyFilters()" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-black" placeholder="Must contain..."/>
+                            <input type="text" id="filterExclude" oninput="applyFilters()" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-black" placeholder="Exclude..."/>
+                        </div>
                     </div>
                 </div>
-                <div id="resultsList" class="scroller flex-1 overflow-y-auto p-6 max-h-[550px] space-y-2">
+
+                <div class="lg:col-span-8">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-1 min-h-[600px] flex flex-col">
+                        <div class="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50/50 rounded-t-xl">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Results</span>
+                                <span id="resultCount" class="bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="sendToIA()" class="text-xs font-medium text-gray-600 bg-white border border-gray-200 px-3 py-1.5 rounded-lg hover:border-black transition">Send to IA Builder</button>
+                                <button onclick="copyToClipboard()" class="text-xs font-medium text-white bg-black px-3 py-1.5 rounded-lg shadow-sm">Copy All</button>
+                            </div>
+                        </div>
+                        <div id="resultsList" class="scroller flex-1 overflow-y-auto p-6 max-h-[600px] space-y-2 text-gray-300">
+                            <div class="h-full flex flex-col items-center justify-center">
+                                <span class="text-sm">Enter a domain to begin</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div id="view-ia-builder" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div id="view-ia-builder" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 <div class="lg:col-span-4 space-y-6">
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                        <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Transfer Data</h2>
-                        <textarea id="urlInput" class="w-full h-64 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono outline-none resize-none transition" placeholder="Paste URLs here..."></textarea>
-                        <button onclick="processSitemapIA()" class="w-full mt-4 bg-black text-white font-semibold py-3 px-4 rounded-xl shadow-lg transition">Build IA Table</button>
+                        <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Input Data</h2>
+                        <textarea id="urlInput" class="w-full h-64 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono outline-none resize-none placeholder-gray-400 transition" placeholder="Paste URL list here..."></textarea>
+                        <button onclick="processSitemapIA()" class="w-full mt-4 bg-black hover:bg-gray-800 text-white font-semibold py-3 px-4 rounded-xl shadow-lg transition">Build IA Structure</button>
                     </div>
                 </div>
                 <div class="lg:col-span-8">
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-1 min-h-[600px] flex flex-col">
                         <div class="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50/50 rounded-t-xl">
-                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">IA Structure</span>
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">IA Table</span>
                             <button onclick="copyTableToClipboard()" class="text-xs font-medium text-white bg-black px-3 py-1.5 rounded-lg shadow-sm">Copy for Sheets</button>
                         </div>
                         <div id="outputSection" class="hidden flex-1 overflow-hidden flex flex-col">
                             <div id="outputTable" class="scroller flex-1 overflow-auto p-4 text-[11px]"></div>
+                        </div>
+                        <div id="ia-placeholder" class="flex-1 flex flex-col items-center justify-center text-gray-300">
+                            <span class="text-sm">Generate IA to see table</span>
                         </div>
                     </div>
                 </div>
@@ -150,75 +104,191 @@ html_content = f"""
         </div>
 
         <script>
-            const pythonUrls = {js_url_list};
+            const CORS_PROXY = "https://corsproxy.io/?";
+            let allExtractedUrls = [];
+            let displayedUrls = [];
+            let processedIAData = [];
 
-            function switchTab(tab) {{
+            function switchTab(tab) {
                 document.getElementById('view-extractor').classList.toggle('hidden', tab !== 'extractor');
                 document.getElementById('view-ia-builder').classList.toggle('hidden', tab !== 'ia-builder');
                 document.getElementById('tab-extractor').classList.toggle('active', tab === 'extractor');
                 document.getElementById('tab-ia-builder').classList.toggle('active', tab === 'ia-builder');
-            }}
+            }
 
-            function renderResults() {{
+            function log(msg) {
+                const el = document.getElementById("statusLog");
+                el.classList.remove("hidden");
+                const line = document.createElement("div");
+                line.textContent = "> " + msg;
+                el.appendChild(line);
+                el.scrollTop = el.scrollHeight;
+            }
+
+            async function fetchText(url) {
+                try {
+                    const res = await fetch(CORS_PROXY + encodeURIComponent(url));
+                    if (res.ok) return await res.text();
+                    
+                    // Fallback proxy for Cloudflare-protected sites
+                    const res2 = await fetch("https://api.allorigins.win/get?url=" + encodeURIComponent(url));
+                    const data = await res2.json();
+                    return data.contents;
+                } catch (e) { return null; }
+            }
+
+            async function discoverSitemaps(input) {
+                let url = input.trim();
+                if (!url.startsWith("http")) url = "https://" + url;
+                if (url.toLowerCase().endsWith(".xml") || url.toLowerCase().endsWith(".xml.gz")) return [url];
+
+                let robotsUrl = url.replace(/\/$/, "") + "/robots.txt";
+                log("Checking robots.txt...");
+                const robots = await fetchText(robotsUrl);
+                
+                if (robots) {
+                    // Match ALL sitemaps in the file
+                    const matches = [...robots.matchAll(/Sitemap:\s*(https?:\/\/[^\s]+)/gi)];
+                    if (matches.length > 0) {
+                        const sitemaps = matches.map(m => m[1]);
+                        log("Found " + sitemaps.length + " entry sitemaps.");
+                        return sitemaps;
+                    }
+                }
+                return [url.replace(/\/$/, "") + "/sitemap.xml"];
+            }
+
+            async function fetchSitemapRecursive(url, visited = new Set()) {
+                if (visited.has(url)) return;
+                visited.add(url);
+                
+                log("Scanning: " + url);
+                const text = await fetchText(url);
+                if (!text) return;
+                
+                const xml = new DOMParser().parseFromString(text, "text/xml");
+                const sitemaps = xml.getElementsByTagName("sitemap");
+                
+                if (sitemaps.length > 0) {
+                    for (let i = 0; i < sitemaps.length; i++) {
+                        const loc = sitemaps[i].getElementsByTagName("loc")[0]?.textContent;
+                        if (loc) await fetchSitemapRecursive(loc, visited);
+                    }
+                } else {
+                    const urls = xml.getElementsByTagName("loc");
+                    for (let i = 0; i < urls.length; i++) {
+                        allExtractedUrls.push(urls[i].textContent);
+                    }
+                    log("Collected " + urls.length + " URLs from branch.");
+                }
+            }
+
+            async function startDeepExtraction() {
+                const input = document.getElementById("sitemapInput").value;
+                if (!input) return;
+                const btn = document.getElementById("extractBtn");
+                btn.disabled = true; btn.textContent = "Crawling...";
+                document.getElementById("statusLog").innerHTML = "";
+                allExtractedUrls = [];
+
+                try {
+                    const sitemaps = await discoverSitemaps(input);
+                    for (const sm of sitemaps) {
+                        await fetchSitemapRecursive(sm);
+                    }
+                    allExtractedUrls = [...new Set(allExtractedUrls)];
+                    applyFilters();
+                    log("DONE. Total unique URLs: " + allExtractedUrls.length);
+                } catch (e) { log("Error: " + e.message); }
+                finally { btn.disabled = false; btn.textContent = "Start Deep Extraction"; }
+            }
+
+            function applyFilters() {
+                const inc = document.getElementById("filterInclude").value.toLowerCase();
+                const exc = document.getElementById("filterExclude").value.toLowerCase();
+                displayedUrls = allExtractedUrls.filter(u => {
+                    const low = u.toLowerCase();
+                    return (!inc || low.includes(inc)) && (!exc || !low.includes(exc));
+                }).sort();
+                renderResults();
+            }
+
+            function renderResults() {
                 const container = document.getElementById("resultsList");
-                if (pythonUrls.length === 0) {{
-                    container.innerHTML = '<div class="h-full flex flex-col items-center justify-center text-gray-300"><span class="text-sm">Run crawl from the sidebar to see results</span></div>';
+                document.getElementById("resultCount").textContent = displayedUrls.length;
+                if (displayedUrls.length === 0) {
+                    container.innerHTML = '<div class="h-full flex flex-col items-center justify-center text-gray-300"><span class="text-sm">No results match filters</span></div>';
                     return;
-                }}
-                container.innerHTML = pythonUrls.map(u => 
-                    '<div class="p-2 bg-gray-50 border border-transparent hover:border-gray-200 hover:bg-white rounded text-xs font-mono truncate transition">' + u + '</div>'
+                }
+                container.innerHTML = displayedUrls.slice(0, 2000).map(u => 
+                    '<div class="p-2 bg-gray-50 border border-transparent hover:border-gray-200 hover:bg-white rounded text-xs font-mono truncate transition cursor-pointer" onclick="navigator.clipboard.writeText(\''+u+'\')">' + u + '</div>'
                 ).join('');
-            }}
+            }
 
-            function sendToIA() {{
-                document.getElementById('urlInput').value = pythonUrls.join('\\n');
+            function sendToIA() {
+                document.getElementById('urlInput').value = displayedUrls.join('\n');
                 switchTab('ia-builder');
                 processSitemapIA();
-            }}
+            }
 
-            const sanitize = (s) => {{
+            // IA Builder Logic
+            const sanitize = (s) => {
                 if (!s) return '';
                 let parts = s.split('?')[0].replace(/\/$/, "").split('-');
                 if (parts[parts.length-1].length > 10) parts.pop();
                 return parts.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-            }};
+            };
 
-            function processSitemapIA() {{
+            function processSitemapIA() {
                 const input = document.getElementById('urlInput').value.trim();
-                const urls = input.split('\\n').filter(l => l.trim().startsWith('http'));
-                const data = urls.map(u => {{
-                    try {{
+                const urls = input.split('\n').filter(l => l.trim().startsWith('http'));
+                processedIAData = urls.map(u => {
+                    try {
                         const urlObj = new URL(u);
                         const segments = urlObj.pathname.split('/').filter(s => s !== '');
-                        let item = {{ url: u, main: segments[0] ? sanitize(segments[0]) : 'Home' }};
+                        let item = { url: u, main: segments[0] ? sanitize(segments[0]) : 'Home' };
                         for (let i = 1; i <= 9; i++) item['sub'+i] = segments[i] ? sanitize(segments[i]) : '';
                         item.specific = segments.length > 0 ? sanitize(segments[segments.length-1]) : '';
                         return item;
-                    }} catch(e) {{ return null; }}
-                }}).filter(x => x);
+                    } catch(e) { return null; }
+                }).filter(x => x);
 
-                let html = '<table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50 text-[10px] uppercase font-bold text-left"><tr><th class="p-2">Main</th>';
+                renderIATable();
+                document.getElementById('outputSection').classList.remove('hidden');
+                document.getElementById('ia-placeholder').classList.add('hidden');
+            }
+
+            function renderIATable() {
+                let html = '<table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50 text-[10px] uppercase font-bold text-left text-gray-500"><tr><th class="p-2">Main</th>';
                 for(let i=1; i<=9; i++) html += '<th class="p-2">Sub-' + i + '</th>';
-                html += '<th class="p-2">Item</th><th class="p-2">URL</th></tr></thead><tbody class="divide-y divide-gray-100">';
+                html += '<th class="p-2">Item</th><th class="p-2">URL</th></tr></thead><tbody class="divide-y divide-gray-100 bg-white">';
                 
-                data.forEach(item => {{
-                    html += '<tr><td class="p-2 font-medium">' + item.main + '</td>';
+                processedIAData.forEach(item => {
+                    html += '<tr><td class="p-2 font-medium text-gray-900">' + item.main + '</td>';
                     for(let i=1; i<=9; i++) html += '<td class="p-2 text-gray-500">' + item['sub'+i] + '</td>';
                     html += '<td class="p-2 text-gray-500">' + item.specific + '</td><td class="p-2 text-blue-500 truncate max-w-[120px] font-mono">' + item.url + '</td></tr>';
-                }});
+                });
                 document.getElementById('outputTable').innerHTML = html + '</tbody></table>';
-                document.getElementById('outputSection').classList.remove('hidden');
-            }}
+            }
 
-            function copyToClipboard() {{
-                navigator.clipboard.writeText(pythonUrls.join('\\n'));
-                alert("All results copied!");
-            }}
+            function copyTableToClipboard() {
+                const headers = ['Main', 'Sub 1', 'Sub 2', 'Sub 3', 'Sub 4', 'Sub 5', 'Sub 6', 'Sub 7', 'Sub 8', 'Sub 9', 'Item', 'URL'];
+                let tsv = headers.join('\t') + '\n';
+                processedIAData.forEach(item => {
+                    const row = [item.main, item.sub1, item.sub2, item.sub3, item.sub4, item.sub5, item.sub6, item.sub7, item.sub8, item.sub9, item.specific, item.url];
+                    tsv += row.join('\t') + '\n';
+                });
+                navigator.clipboard.writeText(tsv);
+                alert("Copied for Google Sheets!");
+            }
 
-            renderResults();
+            function copyToClipboard() {
+                navigator.clipboard.writeText(displayedUrls.join('\n'));
+                alert("Copied all URLs!");
+            }
         </script>
     </body>
 </html>
 """
 
-components.html(html_content, height=950, scrolling=False)
+components.html(html_content, height=1000, scrolling=True)
