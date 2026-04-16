@@ -18,36 +18,47 @@ import webview
 # Force-load sitemap_server from the data file (not the frozen module)
 # so that the bundled .py is always up to date.
 def _load_sitemap_server():
-    log = os.path.expanduser("~/Desktop/_crawlsync_debug.txt")
-    with open(log, "w") as f:
-        f.write(f"_MEIPASS: {getattr(sys, '_MEIPASS', 'NOT SET')}\n")
-        f.write(f"__file__: {__file__}\n")
-        candidates = []
-        if hasattr(sys, "_MEIPASS"):
-            mp = sys._MEIPASS
-            candidates += [
-                mp,
-                os.path.normpath(os.path.join(mp, "..", "Frameworks")),
-                os.path.normpath(os.path.join(mp, "..", "Resources")),
-            ]
-        candidates.append(os.path.dirname(os.path.abspath(__file__)))
-        for base in candidates:
-            fp = os.path.join(base, "sitemap_server.py")
-            exists = os.path.exists(fp)
-            f.write(f"  {fp} -> exists={exists}\n")
-            if exists:
-                try:
-                    spec = importlib.util.spec_from_file_location("sitemap_server", fp)
-                    mod  = importlib.util.module_from_spec(spec)
-                    sys.modules["sitemap_server"] = mod
-                    spec.loader.exec_module(mod)
-                    routes = [str(r) for r in mod.app.url_map.iter_rules()]
-                    f.write(f"  LOADED OK. Routes: {routes}\n")
-                    return mod
-                except Exception as e:
-                    import traceback
-                    f.write(f"  LOAD FAILED: {e}\n{traceback.format_exc()}\n")
-        f.write("Falling back to frozen import\n")
+    # Debug log — written to home dir (always writable, cross-platform).
+    # Wrapped in try/except so a missing/unwritable path never crashes the app.
+    def _log(msg):
+        try:
+            log = os.path.join(os.path.expanduser("~"), "_crawlsync_debug.txt")
+            with open(log, "a", encoding="utf-8") as f:
+                f.write(msg + "\n")
+        except Exception:
+            pass
+
+    _log(f"_MEIPASS: {getattr(sys, '_MEIPASS', 'NOT SET')}")
+    _log(f"__file__: {__file__}")
+
+    candidates = []
+    if hasattr(sys, "_MEIPASS"):
+        mp = sys._MEIPASS
+        candidates += [
+            mp,
+            os.path.normpath(os.path.join(mp, "..", "Frameworks")),
+            os.path.normpath(os.path.join(mp, "..", "Resources")),
+        ]
+    candidates.append(os.path.dirname(os.path.abspath(__file__)))
+
+    for base in candidates:
+        fp = os.path.join(base, "sitemap_server.py")
+        exists = os.path.exists(fp)
+        _log(f"  {fp} -> exists={exists}")
+        if exists:
+            try:
+                spec = importlib.util.spec_from_file_location("sitemap_server", fp)
+                mod  = importlib.util.module_from_spec(spec)
+                sys.modules["sitemap_server"] = mod
+                spec.loader.exec_module(mod)
+                routes = [str(r) for r in mod.app.url_map.iter_rules()]
+                _log(f"  LOADED OK. Routes: {routes}")
+                return mod
+            except Exception as e:
+                import traceback
+                _log(f"  LOAD FAILED: {e}\n{traceback.format_exc()}")
+
+    _log("Falling back to frozen import")
     import sitemap_server
     return sitemap_server
 
