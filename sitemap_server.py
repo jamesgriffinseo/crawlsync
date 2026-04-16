@@ -2106,6 +2106,25 @@ def save_bulk_files():
     return jsonify({"saved": len(saved), "errors": errors, "folder": folder})
 
 
+@app.route("/pick-folder")
+def pick_folder_dialog():
+    """Windows folder-picker via tkinter (used when running in Edge app mode, no pywebview)."""
+    import platform as _platform
+    if _platform.system() != "Windows":
+        return jsonify({"error": "pick-folder endpoint is Windows-only"}), 400
+    try:
+        import tkinter as _tk
+        from tkinter import filedialog as _fd
+        root = _tk.Tk()
+        root.withdraw()
+        root.wm_attributes("-topmost", True)
+        folder = _fd.askdirectory(title="Choose folder to save files")
+        root.destroy()
+        return jsonify({"folder": folder or None})
+    except Exception as e:
+        return jsonify({"error": str(e), "folder": None})
+
+
 @app.route("/quit", methods=["POST"])
 def quit_app():
     threading.Thread(target=lambda: (time.sleep(0.3), os._exit(0))).start()

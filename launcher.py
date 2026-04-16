@@ -8,12 +8,18 @@ Windows build: build_app.bat    → dist/CrawlSync/CrawlSync.exe  + CrawlSync-Wi
 """
 import os
 import sys
+import platform
 import threading
 import time
 import urllib.request
 import importlib
 import importlib.util
-import webview
+
+# pywebview is only used on macOS — on Windows we open Edge in app mode instead.
+# Both of pywebview's Windows backends (edgechromium + winforms) depend on
+# pythonnet/clr which fails to load Python.Runtime.dll from a PyInstaller bundle.
+if platform.system() != "Windows":
+    import webview
 
 # Force-load sitemap_server from the data file (not the frozen module)
 # so that the bundled .py is always up to date.
@@ -292,36 +298,79 @@ def wait_for_server(timeout=10):
     return False
 
 
+def _find_edge():
+    """Return the path to msedge.exe, or None if not found."""
+    import shutil
+    common = [
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    ]
+    for p in common:
+        if os.path.exists(p):
+            return p
+    return shutil.which("msedge") or shutil.which("microsoft-edge")
+
+
+def _run_windows():
+    """Open CrawlSync in Edge app-mode window — zero .NET / pythonnet dependency."""
+    import subprocess
+    import webbrowser
+
+    url = "http://127.0.0.1:5050/"
+    edge = _find_edge()
+
+    if edge:
+        # --app removes the address bar and gives it a native-app look
+        proc = subprocess.Popen([
+            edge,
+            f"--app={url}",
+            "--window-size=1400,900",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--disable-extensions",
+        ])
+        proc.wait()   # block until the Edge window is closed
+    else:
+        # Fallback: open in whatever browser is default
+        webbrowser.open(url)
+        # Keep the server alive until the user kills the process
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            pass
+
+
 def main():
-    import platform as _platform
-
-    # On Windows force the EdgeChromium (WebView2) backend.
-    # The winforms/pythonnet backend fails when bundled with PyInstaller because
-    # Python.Runtime.dll can't resolve its loader from inside the frozen bundle.
-    # EdgeChromium is pre-installed on all Windows 10/11 machines and bundles cleanly.
-    _gui = None
-    if _platform.system() == "Windows":
-        _gui = "edgechromium"
-
     threading.Thread(target=run_server, daemon=True).start()
 
     if not wait_for_server():
-        # Show a basic error page if server never came up
-        webview.create_window("CrawlSync", html="<h2>Server failed to start.</h2>", width=400, height=200)
-        webview.start(gui=_gui)
+        if platform.system() == "Windows":
+            import tkinter as _tk
+            from tkinter import messagebox as _mb
+            _r = _tk.Tk(); _r.withdraw()
+            _mb.showerror("CrawlSync", "Server failed to start.")
+            _r.destroy()
+        else:
+            webview.create_window("CrawlSync", html="<h2>Server failed to start.</h2>",
+                                  width=400, height=200)
+            webview.start()
         return
 
-    api = CrawlSyncAPI()
-    webview.create_window(
-        "CrawlSync",
-        "http://127.0.0.1:5050/",
-        width=1400,
-        height=900,
-        min_size=(800, 600),
-        js_api=api,
-    )
-    webview.start(gui=_gui)
-    # Window closed — daemon thread exits with the process
+    if platform.system() == "Windows":
+        _run_windows()
+    else:
+        api = CrawlSyncAPI()
+        webview.create_window(
+            "CrawlSync",
+            "http://127.0.0.1:5050/",
+            width=1400,
+            height=900,
+            min_size=(800, 600),
+            js_api=api,
+        )
+        webview.start()
+        # Window closed — daemon thread exits with the process
 
 
 if __name__ == "__main__":

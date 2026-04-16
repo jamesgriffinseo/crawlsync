@@ -92,9 +92,10 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install pyinstaller flask flask-cors requests pywebview Pillow \
-                      cloudscraper openpyxl beautifulsoup4 playwright python-docx
-          playwright install chromium || true   # non-fatal — app still works without it
+          pip install pyinstaller flask flask-cors requests Pillow \
+                      cloudscraper openpyxl beautifulsoup4 python-docx
+          # pywebview intentionally NOT installed on Windows — we use Edge app-mode instead
+          # (pywebview's Windows backends require pythonnet which breaks in PyInstaller bundles)
 
       - name: Generate icon
         run: python create_icon.py
@@ -116,13 +117,8 @@ jobs:
             --hidden-import jinja2.ext \
             --hidden-import click \
             --hidden-import itsdangerous \
-            --hidden-import webview \
-            --hidden-import webview.platforms.edgechromium \
-            --collect-all webview \
             --collect-all docx \
             --collect-all lxml \
-            --exclude-module tkinter \
-            --exclude-module _tkinter \
             --clean \
             --noconfirm \
             launcher.py

@@ -4533,13 +4533,21 @@
             } else { _bulkSaving = false; }
         };
 
-        if (window.pywebview) {
-            // Native desktop app:
-            // 1. Use pywebview pick_folder() for native OS folder dialog
-            // 2. POST data to Flask over HTTP (avoids pywebview bridge size limits on large sections_json)
+        if (window.pywebview || true) {
+            // Desktop app: pywebview (macOS) or Edge app-mode (Windows).
+            // Folder picker: pywebview API on macOS, Flask /pick-folder endpoint on Windows.
             if (btn) { btn.disabled = true; btn.textContent = 'Choose folder…'; }
             let folder = null;
-            try { folder = await window.pywebview.api.pick_folder(); } catch (_) {}
+            if (window.pywebview) {
+                try { folder = await window.pywebview.api.pick_folder(); } catch (_) {}
+            } else {
+                // Windows Edge app-mode — use Flask tkinter folder picker
+                try {
+                    const r = await fetch('http://127.0.0.1:5050/pick-folder');
+                    const d = await r.json();
+                    folder = d.folder || null;
+                } catch (_) {}
+            }
             if (!folder) { done(prev, ''); return; }   // cancelled
             if (btn) { btn.textContent = 'Saving…'; }
             try {
