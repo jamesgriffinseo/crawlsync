@@ -93,7 +93,7 @@ def build_icns():
         print(f"iconutil error: {r.stderr}")
         return False
 
-    print("  CrawlSync.icns ✓")
+    print("  CrawlSync.icns done")
     return True
 
 
@@ -107,7 +107,7 @@ def build_ico():
         sizes=[(s, s) for s in ICO_SIZES],
         append_images=images[1:],
     )
-    print("  CrawlSync.ico ✓")
+    print("  CrawlSync.ico done")
     return True
 
 
