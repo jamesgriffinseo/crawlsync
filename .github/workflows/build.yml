@@ -118,7 +118,7 @@ jobs:
             --hidden-import itsdangerous \
             --hidden-import webview \
             --hidden-import webview.platforms.edgechromium \
-            --hidden-import webview.platforms.winforms \
+            --collect-all webview \
             --collect-all docx \
             --collect-all lxml \
             --exclude-module tkinter \

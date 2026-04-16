@@ -293,12 +293,22 @@ def wait_for_server(timeout=10):
 
 
 def main():
+    import platform as _platform
+
+    # On Windows force the EdgeChromium (WebView2) backend.
+    # The winforms/pythonnet backend fails when bundled with PyInstaller because
+    # Python.Runtime.dll can't resolve its loader from inside the frozen bundle.
+    # EdgeChromium is pre-installed on all Windows 10/11 machines and bundles cleanly.
+    _gui = None
+    if _platform.system() == "Windows":
+        _gui = "edgechromium"
+
     threading.Thread(target=run_server, daemon=True).start()
 
     if not wait_for_server():
         # Show a basic error page if server never came up
         webview.create_window("CrawlSync", html="<h2>Server failed to start.</h2>", width=400, height=200)
-        webview.start()
+        webview.start(gui=_gui)
         return
 
     api = CrawlSyncAPI()
@@ -310,7 +320,7 @@ def main():
         min_size=(800, 600),
         js_api=api,
     )
-    webview.start()
+    webview.start(gui=_gui)
     # Window closed — daemon thread exits with the process
 
 
