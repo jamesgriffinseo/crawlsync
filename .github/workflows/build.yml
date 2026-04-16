@@ -1,0 +1,164 @@
+name: Build CrawlSync
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  workflow_dispatch:   # allow manual trigger from GitHub UI
+
+jobs:
+  # ─── macOS → .dmg ────────────────────────────────────────────────────────────
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyinstaller flask flask-cors requests pywebview Pillow \
+                      cloudscraper openpyxl beautifulsoup4 playwright python-docx
+          playwright install chromium
+
+      - name: Generate icon
+        run: python create_icon.py
+
+      - name: Build .app
+        run: |
+          pyinstaller \
+            --windowed \
+            --name "CrawlSync" \
+            --icon CrawlSync.icns \
+            --add-data "sitemap + IA v2.html:." \
+            --add-data "sitemap_server.py:." \
+            --hidden-import flask_cors \
+            --hidden-import werkzeug \
+            --hidden-import werkzeug.serving \
+            --hidden-import werkzeug.debug \
+            --hidden-import werkzeug.routing \
+            --hidden-import jinja2 \
+            --hidden-import jinja2.ext \
+            --hidden-import click \
+            --hidden-import itsdangerous \
+            --hidden-import webview \
+            --hidden-import webview.platforms.cocoa \
+            --collect-all docx \
+            --collect-all lxml \
+            --exclude-module tkinter \
+            --exclude-module _tkinter \
+            --clean \
+            --noconfirm \
+            launcher.py
+
+      - name: Sign app (ad-hoc)
+        run: codesign --deep --force --sign - "dist/CrawlSync.app"
+
+      - name: Create DMG
+        run: |
+          mkdir -p dist/dmg-staging
+          cp -r dist/CrawlSync.app dist/dmg-staging/
+          ln -s /Applications dist/dmg-staging/Applications
+          hdiutil create \
+            -volname "CrawlSync" \
+            -srcfolder dist/dmg-staging \
+            -ov -format UDZO \
+            dist/CrawlSync.dmg
+          rm -rf dist/dmg-staging
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: CrawlSync-macOS
+          path: dist/CrawlSync.dmg
+          retention-days: 30
+
+  # ─── Windows → .exe (zipped) ─────────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyinstaller flask flask-cors requests pywebview Pillow `
+                      cloudscraper openpyxl beautifulsoup4 playwright python-docx
+          playwright install chromium
+
+      - name: Generate icon
+        run: python create_icon.py
+
+      - name: Build .exe
+        run: |
+          pyinstaller `
+            --windowed `
+            --name "CrawlSync" `
+            --icon CrawlSync.ico `
+            "--add-data=sitemap + IA v2.html;." `
+            "--add-data=sitemap_server.py;." `
+            --hidden-import flask_cors `
+            --hidden-import werkzeug `
+            --hidden-import werkzeug.serving `
+            --hidden-import werkzeug.debug `
+            --hidden-import werkzeug.routing `
+            --hidden-import jinja2 `
+            --hidden-import jinja2.ext `
+            --hidden-import click `
+            --hidden-import itsdangerous `
+            --hidden-import webview `
+            --hidden-import webview.platforms.edgechromium `
+            --hidden-import webview.platforms.winforms `
+            --collect-all docx `
+            --collect-all lxml `
+            --exclude-module tkinter `
+            --exclude-module _tkinter `
+            --clean `
+            --noconfirm `
+            launcher.py
+
+      - name: Zip output
+        run: Compress-Archive -Path dist\CrawlSync -DestinationPath dist\CrawlSync-Windows.zip -Force
+        shell: pwsh
+
+      - name: Upload ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: CrawlSync-Windows
+          path: dist/CrawlSync-Windows.zip
+          retention-days: 30
+
+  # ─── On a version tag: create a GitHub Release with both files ───────────────
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: CrawlSync-macOS
+          path: release
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: CrawlSync-Windows
+          path: release
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/CrawlSync.dmg
+            release/CrawlSync-Windows.zip
+          generate_release_notes: true

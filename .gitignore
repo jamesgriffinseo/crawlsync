@@ -1,0 +1,24 @@
+# Build outputs
+dist/
+build/
+*.spec
+
+# Virtual environment
+.venv/
+
+# PyInstaller
+__pycache__/
+*.pyc
+*.pyo
+
+# macOS
+.DS_Store
+*.iconset/
+CrawlSync.icns
+CrawlSync.ico
+
+# Debug logs
+_crawlsync_debug.txt
+
+# Playwright browsers (large, installed at build time)
+.playwright/
