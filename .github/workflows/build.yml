@@ -79,6 +79,9 @@ jobs:
   # ─── Windows → .exe (zipped) ─────────────────────────────────────────────────
   build-windows:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash   # use Git Bash on Windows — avoids PowerShell quoting issues
     steps:
       - uses: actions/checkout@v4
 
@@ -89,44 +92,43 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install pyinstaller flask flask-cors requests pywebview Pillow `
+          pip install pyinstaller flask flask-cors requests pywebview Pillow \
                       cloudscraper openpyxl beautifulsoup4 playwright python-docx
-          playwright install chromium
+          playwright install chromium || true   # non-fatal — app still works without it
 
       - name: Generate icon
         run: python create_icon.py
 
       - name: Build .exe
         run: |
-          pyinstaller `
-            --windowed `
-            --name "CrawlSync" `
-            --icon CrawlSync.ico `
-            "--add-data=sitemap + IA v2.html;." `
-            "--add-data=sitemap_server.py;." `
-            --hidden-import flask_cors `
-            --hidden-import werkzeug `
-            --hidden-import werkzeug.serving `
-            --hidden-import werkzeug.debug `
-            --hidden-import werkzeug.routing `
-            --hidden-import jinja2 `
-            --hidden-import jinja2.ext `
-            --hidden-import click `
-            --hidden-import itsdangerous `
-            --hidden-import webview `
-            --hidden-import webview.platforms.edgechromium `
-            --hidden-import webview.platforms.winforms `
-            --collect-all docx `
-            --collect-all lxml `
-            --exclude-module tkinter `
-            --exclude-module _tkinter `
-            --clean `
-            --noconfirm `
+          pyinstaller \
+            --windowed \
+            --name "CrawlSync" \
+            --icon CrawlSync.ico \
+            "--add-data=sitemap + IA v2.html;." \
+            "--add-data=sitemap_server.py;." \
+            --hidden-import flask_cors \
+            --hidden-import werkzeug \
+            --hidden-import werkzeug.serving \
+            --hidden-import werkzeug.debug \
+            --hidden-import werkzeug.routing \
+            --hidden-import jinja2 \
+            --hidden-import jinja2.ext \
+            --hidden-import click \
+            --hidden-import itsdangerous \
+            --hidden-import webview \
+            --hidden-import webview.platforms.edgechromium \
+            --hidden-import webview.platforms.winforms \
+            --collect-all docx \
+            --collect-all lxml \
+            --exclude-module tkinter \
+            --exclude-module _tkinter \
+            --clean \
+            --noconfirm \
             launcher.py
 
       - name: Zip output
-        run: Compress-Archive -Path dist\CrawlSync -DestinationPath dist\CrawlSync-Windows.zip -Force
-        shell: pwsh
+        run: powershell Compress-Archive -Path dist/CrawlSync -DestinationPath dist/CrawlSync-Windows.zip -Force
 
       - name: Upload ZIP
         uses: actions/upload-artifact@v4
