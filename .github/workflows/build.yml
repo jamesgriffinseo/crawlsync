@@ -93,9 +93,10 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install pyinstaller flask flask-cors requests Pillow \
-                      cloudscraper openpyxl beautifulsoup4 python-docx
+                      cloudscraper openpyxl beautifulsoup4 python-docx waitress
           # pywebview intentionally NOT installed on Windows — we use Edge app-mode instead
           # (pywebview's Windows backends require pythonnet which breaks in PyInstaller bundles)
+          # waitress = production WSGI server; more reliable than werkzeug in frozen Windows exes
 
       - name: Generate icon
         run: python create_icon.py
@@ -117,6 +118,7 @@ jobs:
             --hidden-import jinja2.ext \
             --hidden-import click \
             --hidden-import itsdangerous \
+            --hidden-import waitress \
             --collect-all docx \
             --collect-all lxml \
             --clean \

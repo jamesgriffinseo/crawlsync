@@ -283,18 +283,39 @@ class CrawlSyncAPI:
 
 
 def run_server():
-    sitemap_server.app.run(host="127.0.0.1", port=5050, debug=False, use_reloader=False)
+    # On Windows the built-in Werkzeug dev server can be unreliable in frozen
+    # bundles (no console, stdout redirected to NUL).  Waitress is a
+    # production-grade WSGI server that works cleanly on Windows.
+    if platform.system() == "Windows":
+        try:
+            from waitress import serve
+            serve(sitemap_server.app, host="127.0.0.1", port=5050, threads=4)
+            return
+        except Exception as e:
+            _server_log(f"waitress failed ({e}), falling back to werkzeug")
+    sitemap_server.app.run(host="127.0.0.1", port=5050, debug=False,
+                           use_reloader=False, threaded=True)
 
 
-def wait_for_server(timeout=10):
-    """Poll until Flask is ready or timeout is reached."""
+def _server_log(msg):
+    """Write a line to ~/CrawlSync-server.log (visible on Windows where there is no console)."""
+    try:
+        log = os.path.join(os.path.expanduser("~"), "CrawlSync-server.log")
+        with open(log, "a", encoding="utf-8") as f:
+            f.write(msg + "\n")
+    except Exception:
+        pass
+
+
+def wait_for_server(timeout=15):
+    """Poll until Flask/Waitress is ready or timeout is reached."""
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
-            urllib.request.urlopen("http://127.0.0.1:5050/ping", timeout=0.5)
+            urllib.request.urlopen("http://127.0.0.1:5050/ping", timeout=1)
             return True
         except Exception:
-            time.sleep(0.1)
+            time.sleep(0.2)
     return False
 
 
@@ -342,6 +363,17 @@ def _run_windows():
 
 
 def main():
+    # On Windows --windowed exes have no console, so stdout/stderr are NUL.
+    # Redirect them to a log file so server startup errors are visible.
+    if platform.system() == "Windows" and getattr(sys, "frozen", False):
+        _log_path = os.path.join(os.path.expanduser("~"), "CrawlSync-server.log")
+        try:
+            _lf = open(_log_path, "w", encoding="utf-8", buffering=1)
+            sys.stdout = _lf
+            sys.stderr = _lf
+        except Exception:
+            pass
+
     threading.Thread(target=run_server, daemon=True).start()
 
     if not wait_for_server():
