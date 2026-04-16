@@ -108,7 +108,7 @@ jobs:
             --name "CrawlSync" \
             --icon CrawlSync.ico \
             "--add-data=sitemap + IA v2.html;." \
-            "--add-data=sitemap_server.py;." \
+            --hidden-import sitemap_server \
             --hidden-import flask_cors \
             --hidden-import werkzeug \
             --hidden-import werkzeug.serving \
@@ -119,8 +119,11 @@ jobs:
             --hidden-import click \
             --hidden-import itsdangerous \
             --hidden-import waitress \
+            --collect-all sitemap_server \
             --collect-all docx \
             --collect-all lxml \
+            --collect-all cloudscraper \
+            --collect-all bs4 \
             --clean \
             --noconfirm \
             launcher.py

@@ -68,7 +68,13 @@ def _load_sitemap_server():
     import sitemap_server
     return sitemap_server
 
-sitemap_server = _load_sitemap_server()
+if platform.system() == "Windows":
+    # On Windows, PyInstaller freezes sitemap_server as a proper module.
+    # Dynamic exec_module() loading causes sub-imports to fail in the frozen bundle.
+    import sitemap_server
+else:
+    # On macOS the frozen module can be stale; force-load from the data file copy.
+    sitemap_server = _load_sitemap_server()
 
 
 class CrawlSyncAPI:
